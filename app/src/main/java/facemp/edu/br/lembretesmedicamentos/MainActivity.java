@@ -19,7 +19,7 @@ import android.widget.ListView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TimePicker;
 import android.widget.Toast;
-
+import java.util.concurrent.TimeUnit;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -222,26 +222,75 @@ public class MainActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void enviarSMSConfirmacao(String nome, String horario) {
+    private void enviarSMSConfirmacao(String nome, String horarioProgramado) {
         String numero = sharedPreferences.getString("numero_notificacao", null);
         if (numero == null || numero.isEmpty()) {
             Toast.makeText(this, "Número de notificação não configurado", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        Calendar agora = Calendar.getInstance();
-        int horaAtual = agora.get(Calendar.HOUR_OF_DAY);
+        try {
+            Calendar agora = Calendar.getInstance();
+            int horaAtual = agora.get(Calendar.HOUR_OF_DAY);
+            int minutoAtual = agora.get(Calendar.MINUTE);
+            String horarioReal = String.format("%02d:%02d", horaAtual, minutoAtual);
 
-        if (horaAtual >= 6 && horaAtual < 22) {
-            try {
-                SmsManager smsManager = SmsManager.getDefault();
-                String mensagem = "Medicamento " + nome + " tomado às " + horario;
-                smsManager.sendTextMessage(numero, null, mensagem, null, null);
-            } catch (Exception e) {
-                Toast.makeText(this, "Falha ao enviar SMS: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            String[] partes = horarioProgramado.split(":");
+            int horaProgramada = Integer.parseInt(partes[0]);
+            int minutoProgramado = Integer.parseInt(partes[1]);
+
+            StringBuilder mensagem = new StringBuilder();
+            mensagem.append("Medicamento ").append(nome).append("\n");
+            mensagem.append("Programado para: ").append(horarioProgramado).append("\n");
+            mensagem.append("Tomado às: ").append(horarioReal).append("\n");
+
+            Calendar horarioPrevisto = Calendar.getInstance();
+            horarioPrevisto.set(Calendar.HOUR_OF_DAY, horaProgramada);
+            horarioPrevisto.set(Calendar.MINUTE, minutoProgramado);
+
+            if (agora.after(horarioPrevisto)) {
+                // Cálculo de atraso (mantido igual)
+                long diffMillis = agora.getTimeInMillis() - horarioPrevisto.getTimeInMillis();
+                long diffHoras = TimeUnit.MILLISECONDS.toHours(diffMillis);
+                long diffMinutos = TimeUnit.MILLISECONDS.toMinutes(diffMillis) % 60;
+
+                if (diffHoras > 0) {
+                    mensagem.append("(Atraso de ").append(diffHoras).append("h");
+                    if (diffMinutos > 0) {
+                        mensagem.append(" e ").append(diffMinutos).append("min");
+                    }
+                    mensagem.append(")");
+                } else {
+                    mensagem.append("(Atraso de ").append(diffMinutos).append("min)");
+                }
+            } else if (agora.before(horarioPrevisto)) {
+                // Novo cálculo para antecedência
+                long diffMillis = horarioPrevisto.getTimeInMillis() - agora.getTimeInMillis();
+                long diffHoras = TimeUnit.MILLISECONDS.toHours(diffMillis);
+                long diffMinutos = TimeUnit.MILLISECONDS.toMinutes(diffMillis) % 60;
+
+                if (diffHoras > 0) {
+                    mensagem.append("(Adiantado em ").append(diffHoras).append("h");
+                    if (diffMinutos > 0) {
+                        mensagem.append(" e ").append(diffMinutos).append("min");
+                    }
+                    mensagem.append(")");
+                } else {
+                    mensagem.append("(Adiantado em ").append(diffMinutos).append("min)");
+                }
+            } else {
+                mensagem.append("(No horário)");
             }
-        } else {
-            Toast.makeText(this, "SMS só é enviado entre 6h e 22h", Toast.LENGTH_SHORT).show();
+
+            if (horaAtual >= 6 && horaAtual < 22) {
+                SmsManager smsManager = SmsManager.getDefault();
+                smsManager.sendTextMessage(numero, null, mensagem.toString(), null, null);
+            } else {
+                Toast.makeText(this, "Confirmação registrada (SMS só é enviado entre 6h e 22h)", Toast.LENGTH_LONG).show();
+            }
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Erro: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
