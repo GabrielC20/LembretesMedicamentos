@@ -17,13 +17,6 @@
         android:layout_height="wrap_content"
         android:text="@string/configurar_n_mero_de_notifica_o"/>
 
-    <SearchView
-        android:id="@+id/buscarMedicamento"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:queryHint="Buscar medicamento..."
-        android:iconifiedByDefault="false"/>
 
     <ListView
         android:id="@+id/listViewMedicamentos"
