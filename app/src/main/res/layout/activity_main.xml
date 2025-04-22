@@ -9,13 +9,13 @@
         android:id="@+id/btnAddMedicamento"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Adicionar Medicamento"/>
+        android:text="@string/adicionar_medicamento"/>
 
     <Button
         android:id="@+id/btnConfigurarNumero"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Configurar Número de Notificação"/>
+        android:text="@string/configurar_n_mero_de_notifica_o"/>
 
     <SearchView
         android:id="@+id/buscarMedicamento"
@@ -31,3 +31,4 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"/>
 </LinearLayout>
+

@@ -43,4 +43,6 @@
         libero vel nunc consequat, quis tincidunt nisl eleifend. Cras bibendum enim a justo luctus
         vestibulum. Fusce dictum libero quis erat maximus, vitae volutpat diam dignissim.
     </string>
+    <string name="adicionar_medicamento">Adicionar Medicamento</string>
+    <string name="configurar_n_mero_de_notifica_o">Configurar Número de Notificação</string>
 </resources>
