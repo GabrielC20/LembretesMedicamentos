@@ -46,6 +46,14 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return id;
     }
 
+    public Cursor buscarMedicamentos(String termoBusca) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT * FROM " + TABELA_MEDICAMENTOS +
+                " WHERE " + COLUNA_NOME + " LIKE ?";
+        String[] args = {"%" + termoBusca + "%"};
+        return db.rawQuery(query, args);
+    }
+
     public Cursor obterTodosMedicamentos() {
         SQLiteDatabase db = this.getReadableDatabase();
         return db.query(TABELA_MEDICAMENTOS, null, null, null, null, null, COLUNA_HORARIO + " ASC");

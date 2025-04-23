@@ -16,6 +16,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.SearchView;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TimePicker;
 import android.widget.Toast;
@@ -31,6 +32,8 @@ public class MainActivity extends AppCompatActivity {
     private DatabaseHelper dbHelper;
     private SharedPreferences sharedPreferences;
     private SimpleCursorAdapter adapter;
+    private ListView listViewMedicamentos;
+    private SearchView searchView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,10 +45,12 @@ public class MainActivity extends AppCompatActivity {
 
         Button btnAddMedicamento = findViewById(R.id.btnAddMedicamento);
         Button btnConfigurarNumero = findViewById(R.id.btnConfigurarNumero);
-        ListView listViewMedicamentos = findViewById(R.id.listViewMedicamentos);
+        listViewMedicamentos = findViewById(R.id.listViewMedicamentos);
+        searchView = findViewById(R.id.buscarMedicamento);
 
-        carregarMedicamentos(listViewMedicamentos);
-        configurarLongClick(listViewMedicamentos);
+        carregarMedicamentos();
+        configurarLongClick();
+        configurarBusca();
 
         btnAddMedicamento.setOnClickListener(v -> mostrarDialogAdicionarMedicamento());
         btnConfigurarNumero.setOnClickListener(v -> mostrarDialogConfigurarNumero());
@@ -66,22 +71,29 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void carregarMedicamentos(ListView listView) {
+    private void carregarMedicamentos() {
         Cursor cursor = dbHelper.obterTodosMedicamentos();
+        atualizarAdapter(cursor);
+    }
+
+    private void atualizarAdapter(Cursor cursor) {
         String[] from = new String[]{DatabaseHelper.COLUNA_NOME, DatabaseHelper.COLUNA_HORARIO};
         int[] to = new int[]{android.R.id.text1, android.R.id.text2};
 
-        adapter = new SimpleCursorAdapter(
-                this,
-                android.R.layout.simple_list_item_2,
-                cursor,
-                from,
-                to,
-                0);
+        if (adapter == null) {
+            adapter = new SimpleCursorAdapter(
+                    this,
+                    android.R.layout.simple_list_item_2,
+                    cursor,
+                    from,
+                    to,
+                    0);
+            listViewMedicamentos.setAdapter(adapter);
+        } else {
+            adapter.changeCursor(cursor);
+        }
 
-        listView.setAdapter(adapter);
-
-        listView.setOnItemClickListener((parent, view, position, id) -> {
+        listViewMedicamentos.setOnItemClickListener((parent, view, position, id) -> {
             Cursor itemCursor = (Cursor) parent.getItemAtPosition(position);
             @SuppressLint("Range") String nome = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_NOME));
             @SuppressLint("Range") String horario = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
@@ -89,8 +101,38 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void configurarLongClick(ListView listView) {
-        listView.setOnItemLongClickListener((parent, view, position, id) -> {
+    private void configurarBusca() {
+        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                return false;
+            }
+
+            @Override
+            public boolean onQueryTextChange(String newText) {
+                filtrarMedicamentos(newText);
+                return true;
+            }
+        });
+
+        searchView.setOnCloseListener(() -> {
+            carregarMedicamentos();
+            return false;
+        });
+    }
+
+    private void filtrarMedicamentos(String textoBusca) {
+        Cursor cursorFiltrado;
+        if (textoBusca.isEmpty()) {
+            cursorFiltrado = dbHelper.obterTodosMedicamentos();
+        } else {
+            cursorFiltrado = dbHelper.buscarMedicamentos(textoBusca);
+        }
+        atualizarAdapter(cursorFiltrado);
+    }
+
+    private void configurarLongClick() {
+        listViewMedicamentos.setOnItemLongClickListener((parent, view, position, id) -> {
             Cursor cursor = (Cursor) adapter.getItem(position);
             @SuppressLint("Range") long medicamentoId = cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUNA_ID));
             @SuppressLint("Range") String nome = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_NOME));
@@ -132,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
             long id = dbHelper.adicionarMedicamento(nome, horario);
             if (id != -1) {
                 agendarNotificacao(nome, horario, id);
-                carregarMedicamentos(findViewById(R.id.listViewMedicamentos));
+                carregarMedicamentos();
                 Toast.makeText(this, "Medicamento adicionado!", Toast.LENGTH_SHORT).show();
             }
         });
@@ -165,7 +207,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Medicamento atualizado!", Toast.LENGTH_SHORT).show();
                 cancelarAlarmeExistente(id);
                 agendarNotificacao(novoNome, novoHorario, id);
-                carregarMedicamentos(findViewById(R.id.listViewMedicamentos));
+                carregarMedicamentos();
             }
         });
 
@@ -181,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                     dbHelper.removerMedicamento(id);
                     Toast.makeText(this, "Medicamento excluído!", Toast.LENGTH_SHORT).show();
                     cancelarAlarmeExistente(id);
-                    carregarMedicamentos(findViewById(R.id.listViewMedicamentos));
+                    carregarMedicamentos();
                 })
                 .setNegativeButton("Cancelar", null)
                 .show();
@@ -249,7 +291,6 @@ public class MainActivity extends AppCompatActivity {
             horarioPrevisto.set(Calendar.MINUTE, minutoProgramado);
 
             if (agora.after(horarioPrevisto)) {
-                // Cálculo de atraso (mantido igual)
                 long diffMillis = agora.getTimeInMillis() - horarioPrevisto.getTimeInMillis();
                 long diffHoras = TimeUnit.MILLISECONDS.toHours(diffMillis);
                 long diffMinutos = TimeUnit.MILLISECONDS.toMinutes(diffMillis) % 60;
@@ -264,7 +305,6 @@ public class MainActivity extends AppCompatActivity {
                     mensagem.append("(Atraso de ").append(diffMinutos).append("min)");
                 }
             } else if (agora.before(horarioPrevisto)) {
-                // Novo cálculo para antecedência
                 long diffMillis = horarioPrevisto.getTimeInMillis() - agora.getTimeInMillis();
                 long diffHoras = TimeUnit.MILLISECONDS.toHours(diffMillis);
                 long diffMinutos = TimeUnit.MILLISECONDS.toMinutes(diffMillis) % 60;
