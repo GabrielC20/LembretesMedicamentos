@@ -12,6 +12,7 @@ import android.database.Cursor;
 import android.os.Build;
 import android.os.Bundle;
 import android.telephony.SmsManager;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -173,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
 
             long id = dbHelper.adicionarMedicamento(nome, horario);
             if (id != -1) {
-                agendarNotificacao(nome, horario, id);
+                agendarNotificacao(nome, horario, (int) id);
                 carregarMedicamentos();
                 Toast.makeText(this, "Medicamento adicionado!", Toast.LENGTH_SHORT).show();
             }
@@ -205,8 +206,8 @@ public class MainActivity extends AppCompatActivity {
 
             if (dbHelper.atualizarMedicamento(id, novoNome, novoHorario) > 0) {
                 Toast.makeText(this, "Medicamento atualizado!", Toast.LENGTH_SHORT).show();
-                cancelarAlarmeExistente(id);
-                agendarNotificacao(novoNome, novoHorario, id);
+                cancelarAlarmeExistente((int) id);
+                agendarNotificacao(novoNome, novoHorario, (int) id);
                 carregarMedicamentos();
             }
         });
@@ -222,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                 .setPositiveButton("Excluir", (dialog, which) -> {
                     dbHelper.removerMedicamento(id);
                     Toast.makeText(this, "Medicamento excluído!", Toast.LENGTH_SHORT).show();
-                    cancelarAlarmeExistente(id);
+                    cancelarAlarmeExistente((int) id);
                     carregarMedicamentos();
                 })
                 .setNegativeButton("Cancelar", null)
@@ -334,7 +335,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void agendarNotificacao(String nome, String horario, long id) {
+    private void agendarNotificacao(String nome, String horario, int id) {
         String[] partes = horario.split(":");
         int hora = Integer.parseInt(partes[0]);
         int minuto = Integer.parseInt(partes[1]);
@@ -351,6 +352,7 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, ReceptorAlarme.class);
         intent.putExtra("nome_medicamento", nome);
         intent.putExtra("horario", horario);
+        intent.putExtra("alarme_id", id);
 
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 this,
@@ -377,18 +379,21 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void cancelarAlarmeExistente(long id) {
+    private void cancelarAlarmeExistente(int id) {
         AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
         Intent intent = new Intent(this, ReceptorAlarme.class);
 
+
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
                 this,
-                (int) id,
+                id,
                 intent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
 
-        if (alarmManager != null) {
+        if (alarmManager != null && pendingIntent != null) {
             alarmManager.cancel(pendingIntent);
+            pendingIntent.cancel();
+            Log.d("Alarme", "Alarme cancelado (ID: " + id + ")");
         }
     }
 }
