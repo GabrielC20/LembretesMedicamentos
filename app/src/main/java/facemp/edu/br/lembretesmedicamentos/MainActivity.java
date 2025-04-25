@@ -19,6 +19,7 @@ import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.SearchView;
 import android.widget.SimpleCursorAdapter;
+import android.widget.TextView;
 import android.widget.TimePicker;
 import android.widget.Toast;
 import java.util.concurrent.TimeUnit;
@@ -83,28 +84,32 @@ public class MainActivity extends AppCompatActivity {
                 DatabaseHelper.COLUNA_HORARIO,
                 DatabaseHelper.COLUNA_DOSAGEM
         };
+
+
         int[] to = new int[]{android.R.id.text1, android.R.id.text2};
 
-        if (adapter == null) {
-            adapter = new SimpleCursorAdapter(
-                    this,
-                    android.R.layout.simple_list_item_2,
-                    cursor,
-                    from,
-                    to,
-                    0);
-            listViewMedicamentos.setAdapter(adapter);
-        } else {
-            adapter.changeCursor(cursor);
-        }
+        adapter = new SimpleCursorAdapter(
+                this,
+                android.R.layout.simple_list_item_2,
+                cursor,
+                from,
+                to,
+                0) {
+            @Override
+            public void setViewText(TextView v, String text) {
 
-        listViewMedicamentos.setOnItemClickListener((parent, view, position, id) -> {
-            Cursor itemCursor = (Cursor) parent.getItemAtPosition(position);
-            @SuppressLint("Range") String nome = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_NOME));
-            @SuppressLint("Range") String dosagem = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_DOSAGEM));
-            @SuppressLint("Range") String horario = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
-            mostrarDialogConfirmacao(nome, dosagem, horario);
-        });
+                if (v.getId() == android.R.id.text2) {
+                    Cursor cursor = getCursor();
+                    @SuppressLint("Range") String horario = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
+                    @SuppressLint("Range") String dosagem = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_DOSAGEM));
+                    super.setViewText(v, horario + " - " + dosagem);
+                } else {
+                    super.setViewText(v, text);
+                }
+            }
+        };
+
+        listViewMedicamentos.setAdapter(adapter);
     }
 
     private void configurarBusca() {
@@ -145,7 +150,18 @@ public class MainActivity extends AppCompatActivity {
             @SuppressLint("Range") String dosagem = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_DOSAGEM));
             @SuppressLint("Range") String horario = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
 
-            mostrarMenuContexto(medicamentoId, nome, dosagem, horario);
+            // Criar e mostrar o AlertDialog
+            new AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Opções")
+                    .setItems(new CharSequence[]{"Editar", "Excluir"}, (dialog, which) -> {
+                        if (which == 0) {
+                            mostrarDialogEditarMedicamento(medicamentoId, nome, dosagem, horario);
+                        } else {
+                            confirmarExclusao(medicamentoId);
+                        }
+                    })
+                    .show();
+
             return true;
         });
     }
@@ -304,36 +320,40 @@ public class MainActivity extends AppCompatActivity {
             horarioPrevisto.set(Calendar.HOUR_OF_DAY, horaProgramada);
             horarioPrevisto.set(Calendar.MINUTE, minutoProgramado);
 
-            if (agora.after(horarioPrevisto)) {
-                long diffMillis = agora.getTimeInMillis() - horarioPrevisto.getTimeInMillis();
-                long diffHoras = TimeUnit.MILLISECONDS.toHours(diffMillis);
-                long diffMinutos = TimeUnit.MILLISECONDS.toMinutes(diffMillis) % 60;
+            long diffMillis = agora.getTimeInMillis() - horarioPrevisto.getTimeInMillis();
+            long diffMinutos = TimeUnit.MILLISECONDS.toMinutes(Math.abs(diffMillis));
 
-                if (diffHoras > 0) {
-                    mensagem.append("(Atraso de ").append(diffHoras).append("h");
-                    if (diffMinutos > 0) {
-                        mensagem.append(" e ").append(diffMinutos).append("min");
-                    }
-                    mensagem.append(")");
-                } else {
-                    mensagem.append("(Atraso de ").append(diffMinutos).append("min)");
-                }
-            } else if (agora.before(horarioPrevisto)) {
-                long diffMillis = horarioPrevisto.getTimeInMillis() - agora.getTimeInMillis();
-                long diffHoras = TimeUnit.MILLISECONDS.toHours(diffMillis);
-                long diffMinutos = TimeUnit.MILLISECONDS.toMinutes(diffMillis) % 60;
 
-                if (diffHoras > 0) {
-                    mensagem.append("(Adiantado em ").append(diffHoras).append("h");
-                    if (diffMinutos > 0) {
-                        mensagem.append(" e ").append(diffMinutos).append("min");
-                    }
-                    mensagem.append(")");
-                } else {
-                    mensagem.append("(Adiantado em ").append(diffMinutos).append("min)");
-                }
+            if (diffMinutos <= 1) {
+                mensagem.append("(Tomado no prazo)");
             } else {
-                mensagem.append("(No horário)");
+                if (diffMillis > 0) {
+                    long diffHoras = TimeUnit.MILLISECONDS.toHours(diffMillis);
+                    diffMinutos = diffMinutos % 60;
+
+                    if (diffHoras > 0) {
+                        mensagem.append("(Atraso de ").append(diffHoras).append("h");
+                        if (diffMinutos > 0) {
+                            mensagem.append(" e ").append(diffMinutos).append("min");
+                        }
+                        mensagem.append(")");
+                    } else {
+                        mensagem.append("(Atraso de ").append(diffMinutos).append("min)");
+                    }
+                } else {
+                    long diffHoras = TimeUnit.MILLISECONDS.toHours(-diffMillis);
+                    diffMinutos = diffMinutos % 60;
+
+                    if (diffHoras > 0) {
+                        mensagem.append("(Adiantado em ").append(diffHoras).append("h");
+                        if (diffMinutos > 0) {
+                            mensagem.append(" e ").append(diffMinutos).append("min");
+                        }
+                        mensagem.append(")");
+                    } else {
+                        mensagem.append("(Adiantado em ").append(diffMinutos).append("min)");
+                    }
+                }
             }
 
             if (horaAtual >= 6 && horaAtual < 22) {
