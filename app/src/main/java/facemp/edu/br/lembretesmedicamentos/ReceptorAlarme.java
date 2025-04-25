@@ -21,6 +21,7 @@ public class ReceptorAlarme extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
 
         String nomeMedicamento = intent.getStringExtra("nome_medicamento");
+        String dosagem = intent.getStringExtra("dosagem");
         String horario = intent.getStringExtra("horario");
         int alarmeId = intent.getIntExtra("alarme_id", 0);
 
@@ -48,7 +49,7 @@ public class ReceptorAlarme extends BroadcastReceiver {
 
         Notification notificacao = new NotificationCompat.Builder(context, ID_CANAL)
                 .setContentTitle("Hora do Medicamento!")
-                .setContentText(String.format("Está na hora de tomar %s (%s)", nomeMedicamento, horario))
+                .setContentText("Está na hora de tomar " + nomeMedicamento + " (" + dosagem + ") às " + horario)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
@@ -136,4 +137,3 @@ public class ReceptorAlarme extends BroadcastReceiver {
         return (int) System.currentTimeMillis();
     }
 }
-

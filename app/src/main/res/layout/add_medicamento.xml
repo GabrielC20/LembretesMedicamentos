@@ -11,6 +11,13 @@
         android:layout_height="wrap_content"
         android:hint="Nome do Medicamento"/>
 
+    <EditText
+        android:id="@+id/etDosagem"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="Dosagem (ex: 1 comprimido, 10ml)"/>
+
     <TimePicker
         android:id="@+id/timePickerHorario"
         android:layout_width="wrap_content"

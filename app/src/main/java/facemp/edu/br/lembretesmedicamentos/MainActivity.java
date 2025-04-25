@@ -78,7 +78,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void atualizarAdapter(Cursor cursor) {
-        String[] from = new String[]{DatabaseHelper.COLUNA_NOME, DatabaseHelper.COLUNA_HORARIO};
+        String[] from = new String[]{
+                DatabaseHelper.COLUNA_NOME,
+                DatabaseHelper.COLUNA_HORARIO,
+                DatabaseHelper.COLUNA_DOSAGEM
+        };
         int[] to = new int[]{android.R.id.text1, android.R.id.text2};
 
         if (adapter == null) {
@@ -97,8 +101,9 @@ public class MainActivity extends AppCompatActivity {
         listViewMedicamentos.setOnItemClickListener((parent, view, position, id) -> {
             Cursor itemCursor = (Cursor) parent.getItemAtPosition(position);
             @SuppressLint("Range") String nome = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_NOME));
+            @SuppressLint("Range") String dosagem = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_DOSAGEM));
             @SuppressLint("Range") String horario = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
-            mostrarDialogConfirmacao(nome, horario);
+            mostrarDialogConfirmacao(nome, dosagem, horario);
         });
     }
 
@@ -137,19 +142,21 @@ public class MainActivity extends AppCompatActivity {
             Cursor cursor = (Cursor) adapter.getItem(position);
             @SuppressLint("Range") long medicamentoId = cursor.getLong(cursor.getColumnIndex(DatabaseHelper.COLUNA_ID));
             @SuppressLint("Range") String nome = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_NOME));
+            @SuppressLint("Range") String dosagem = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_DOSAGEM));
             @SuppressLint("Range") String horario = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
 
-            mostrarMenuContexto(medicamentoId, nome, horario);
+            mostrarMenuContexto(medicamentoId, nome, dosagem, horario);
             return true;
         });
     }
 
-    private void mostrarMenuContexto(long id, String nome, String horario) {
+    private void mostrarMenuContexto(long id, String nome, String dosagem, String horario) {
         new AlertDialog.Builder(this)
                 .setTitle(nome + " - " + horario)
+                .setMessage("Dosagem: " + dosagem)
                 .setItems(new String[]{"Editar", "Excluir"}, (dialog, which) -> {
                     if (which == 0) {
-                        mostrarDialogEditarMedicamento(id, nome, horario);
+                        mostrarDialogEditarMedicamento(id, nome, dosagem, horario);
                     } else {
                         confirmarExclusao(id);
                     }
@@ -163,18 +170,20 @@ public class MainActivity extends AppCompatActivity {
 
         View view = getLayoutInflater().inflate(R.layout.add_medicamento, null);
         EditText etNome = view.findViewById(R.id.etNomeMedicamento);
+        EditText etDosagem = view.findViewById(R.id.etDosagem);
         TimePicker timePicker = view.findViewById(R.id.timePickerHorario);
 
         builder.setView(view);
         builder.setPositiveButton("Salvar", (dialog, which) -> {
             String nome = etNome.getText().toString();
+            String dosagem = etDosagem.getText().toString();
             int hora = timePicker.getHour();
             int minuto = timePicker.getMinute();
             String horario = String.format("%02d:%02d", hora, minuto);
 
-            long id = dbHelper.adicionarMedicamento(nome, horario);
+            long id = dbHelper.adicionarMedicamento(nome, horario, dosagem);
             if (id != -1) {
-                agendarNotificacao(nome, horario, (int) id);
+                agendarNotificacao(nome, dosagem, horario, (int) id);
                 carregarMedicamentos();
                 Toast.makeText(this, "Medicamento adicionado!", Toast.LENGTH_SHORT).show();
             }
@@ -184,15 +193,17 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    private void mostrarDialogEditarMedicamento(long id, String nomeAtual, String horarioAtual) {
+    private void mostrarDialogEditarMedicamento(long id, String nomeAtual, String dosagemAtual, String horarioAtual) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Editar Medicamento");
 
         View view = getLayoutInflater().inflate(R.layout.add_medicamento, null);
         EditText etNome = view.findViewById(R.id.etNomeMedicamento);
+        EditText etDosagem = view.findViewById(R.id.etDosagem);
         TimePicker timePicker = view.findViewById(R.id.timePickerHorario);
 
         etNome.setText(nomeAtual);
+        etDosagem.setText(dosagemAtual);
         String[] partes = horarioAtual.split(":");
         timePicker.setHour(Integer.parseInt(partes[0]));
         timePicker.setMinute(Integer.parseInt(partes[1]));
@@ -200,14 +211,15 @@ public class MainActivity extends AppCompatActivity {
         builder.setView(view);
         builder.setPositiveButton("Salvar", (dialog, which) -> {
             String novoNome = etNome.getText().toString();
+            String novaDosagem = etDosagem.getText().toString();
             int hora = timePicker.getHour();
             int minuto = timePicker.getMinute();
             String novoHorario = String.format("%02d:%02d", hora, minuto);
 
-            if (dbHelper.atualizarMedicamento(id, novoNome, novoHorario) > 0) {
+            if (dbHelper.atualizarMedicamento(id, novoNome, novoHorario, novaDosagem) > 0) {
                 Toast.makeText(this, "Medicamento atualizado!", Toast.LENGTH_SHORT).show();
                 cancelarAlarmeExistente((int) id);
-                agendarNotificacao(novoNome, novoHorario, (int) id);
+                agendarNotificacao(novoNome, novaDosagem, novoHorario, (int) id);
                 carregarMedicamentos();
             }
         });
@@ -253,19 +265,19 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    private void mostrarDialogConfirmacao(String nome, String horario) {
+    private void mostrarDialogConfirmacao(String nome, String dosagem, String horario) {
         new AlertDialog.Builder(this)
                 .setTitle("Confirmação")
-                .setMessage("Você tomou o medicamento " + nome + "?")
+                .setMessage("Você tomou o medicamento " + nome + " (" + dosagem + ")?")
                 .setPositiveButton("Sim", (dialog, which) -> {
-                    enviarSMSConfirmacao(nome, horario);
+                    enviarSMSConfirmacao(nome, dosagem, horario);
                     Toast.makeText(this, "Confirmação enviada!", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Não", null)
                 .show();
     }
 
-    private void enviarSMSConfirmacao(String nome, String horarioProgramado) {
+    private void enviarSMSConfirmacao(String nome, String dosagem, String horarioProgramado) {
         String numero = sharedPreferences.getString("numero_notificacao", null);
         if (numero == null || numero.isEmpty()) {
             Toast.makeText(this, "Número de notificação não configurado", Toast.LENGTH_SHORT).show();
@@ -283,7 +295,8 @@ public class MainActivity extends AppCompatActivity {
             int minutoProgramado = Integer.parseInt(partes[1]);
 
             StringBuilder mensagem = new StringBuilder();
-            mensagem.append("Medicamento ").append(nome).append("\n");
+            mensagem.append("Medicamento: ").append(nome).append("\n");
+            mensagem.append("Dosagem: ").append(dosagem).append("\n");
             mensagem.append("Programado para: ").append(horarioProgramado).append("\n");
             mensagem.append("Tomado às: ").append(horarioReal).append("\n");
 
@@ -335,7 +348,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void agendarNotificacao(String nome, String horario, int id) {
+    private void agendarNotificacao(String nome, String dosagem, String horario, int id) {
         String[] partes = horario.split(":");
         int hora = Integer.parseInt(partes[0]);
         int minuto = Integer.parseInt(partes[1]);
@@ -351,6 +364,7 @@ public class MainActivity extends AppCompatActivity {
 
         Intent intent = new Intent(this, ReceptorAlarme.class);
         intent.putExtra("nome_medicamento", nome);
+        intent.putExtra("dosagem", dosagem);
         intent.putExtra("horario", horario);
         intent.putExtra("alarme_id", id);
 

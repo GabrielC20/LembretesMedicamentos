@@ -8,18 +8,20 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String NOME_BANCO = "medicamentos.db";
-    private static final int VERSAO_BANCO = 2;
+    private static final int VERSAO_BANCO = 3;
 
     public static final String TABELA_MEDICAMENTOS = "medicamentos";
     public static final String COLUNA_ID = "_id";
     public static final String COLUNA_NOME = "nome";
     public static final String COLUNA_HORARIO = "horario";
+    public static final String COLUNA_DOSAGEM = "dosagem";
 
     private static final String CRIAR_TABELA =
             "CREATE TABLE " + TABELA_MEDICAMENTOS + " (" +
                     COLUNA_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     COLUNA_NOME + " TEXT NOT NULL, " +
-                    COLUNA_HORARIO + " TEXT NOT NULL);";
+                    COLUNA_HORARIO + " TEXT NOT NULL, " +
+                    COLUNA_DOSAGEM + " TEXT);";
 
     public DatabaseHelper(Context context) {
         super(context, NOME_BANCO, null, VERSAO_BANCO);
@@ -36,11 +38,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public long adicionarMedicamento(String nome, String horario) {
+    public long adicionarMedicamento(String nome, String horario, String dosagem) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues valores = new ContentValues();
         valores.put(COLUNA_NOME, nome);
         valores.put(COLUNA_HORARIO, horario);
+        valores.put(COLUNA_DOSAGEM, dosagem);
         long id = db.insert(TABELA_MEDICAMENTOS, null, valores);
         db.close();
         return id;
@@ -59,11 +62,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return db.query(TABELA_MEDICAMENTOS, null, null, null, null, null, COLUNA_HORARIO + " ASC");
     }
 
-    public int atualizarMedicamento(long id, String novoNome, String novoHorario) {
+    public int atualizarMedicamento(long id, String novoNome, String novoHorario, String novaDosagem) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues valores = new ContentValues();
         valores.put(COLUNA_NOME, novoNome);
         valores.put(COLUNA_HORARIO, novoHorario);
+        valores.put(COLUNA_DOSAGEM, novaDosagem);
         return db.update(TABELA_MEDICAMENTOS, valores, COLUNA_ID + " = ?",
                 new String[]{String.valueOf(id)});
     }
