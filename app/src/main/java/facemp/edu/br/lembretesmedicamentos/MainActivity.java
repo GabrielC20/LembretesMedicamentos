@@ -85,31 +85,41 @@ public class MainActivity extends AppCompatActivity {
                 DatabaseHelper.COLUNA_DOSAGEM
         };
 
-
         int[] to = new int[]{android.R.id.text1, android.R.id.text2};
 
-        adapter = new SimpleCursorAdapter(
-                this,
-                android.R.layout.simple_list_item_2,
-                cursor,
-                from,
-                to,
-                0) {
-            @Override
-            public void setViewText(TextView v, String text) {
+        if (adapter == null) {
+            adapter = new SimpleCursorAdapter(
+                    this,
+                    android.R.layout.simple_list_item_2,
+                    cursor,
+                    from,
+                    to,
+                    0) {
+                @Override
+                public void setViewText(TextView v, String text) {
+                    if (v.getId() == android.R.id.text2) {
 
-                if (v.getId() == android.R.id.text2) {
-                    Cursor cursor = getCursor();
-                    @SuppressLint("Range") String horario = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
-                    @SuppressLint("Range") String dosagem = cursor.getString(cursor.getColumnIndex(DatabaseHelper.COLUNA_DOSAGEM));
-                    super.setViewText(v, horario + " - " + dosagem);
-                } else {
-                    super.setViewText(v, text);
+                        @SuppressLint("Range") String horario = getCursor().getString(getCursor().getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
+                        @SuppressLint("Range") String dosagem = getCursor().getString(getCursor().getColumnIndex(DatabaseHelper.COLUNA_DOSAGEM));
+                        super.setViewText(v, horario + " - " + dosagem);
+                    } else {
+                        super.setViewText(v, text);
+                    }
                 }
-            }
-        };
+            };
 
-        listViewMedicamentos.setAdapter(adapter);
+            listViewMedicamentos.setAdapter(adapter);
+
+            listViewMedicamentos.setOnItemClickListener((parent, view, position, id) -> {
+                Cursor itemCursor = (Cursor) adapter.getItem(position);
+                @SuppressLint("Range") String nome = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_NOME));
+                @SuppressLint("Range") String dosagem = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_DOSAGEM));
+                @SuppressLint("Range") String horario = itemCursor.getString(itemCursor.getColumnIndex(DatabaseHelper.COLUNA_HORARIO));
+                mostrarDialogConfirmacao(nome, dosagem, horario);
+            });
+        } else {
+            adapter.changeCursor(cursor);
+        }
     }
 
     private void configurarBusca() {
